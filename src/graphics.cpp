@@ -1,33 +1,34 @@
-#include "graphics.h"
 #include <Arduino.h>
+#include "graphics.h"
+#include "font.h"
+
 
 void graphics::setPixel(uint8_t x, uint8_t y, Color color) {
   x--;         // normal start is 0 but 1 is better
   y = 64 - y;  // normally starts at bottom but top better
 
-  if ((x < 0) || (x >= WIDTH) || (y < 0) || (y >= HEIGHT)) {
-    return;  // outside screen bound
-  } else {
-    switch (color) {
-      case WHITE:
-        buffer[x + (y / 8) * WIDTH] |= _BV(y % 8);  // Bitwise OR operator
-        break;
-      case BLACK:
-        buffer[x + (y / 8) * WIDTH] &= ~_BV(y % 8);  // Bitwise AND / NOT operator
-        break;
-      case INVERSE:
-        buffer[x + (y / 8) * WIDTH] ^= _BV(y % 8);  // Bitwise XOR operator
-        break;
-    }
+  if ((x < 1) || (x > WIDTH) || (y < 1) || (y > HEIGHT)) return;  // outside screen bound
+
+  switch (color) {
+    case WHITE:
+      buffer[x + (y / 8) * WIDTH] |= _BV(y % 8);  // Bitwise OR operator
+      break;
+    case BLACK:
+      buffer[x + (y / 8) * WIDTH] &= ~_BV(y % 8);  // Bitwise AND / NOT operator
+      break;
+    case INVERSE:
+      buffer[x + (y / 8) * WIDTH] ^= _BV(y % 8);  // Bitwise XOR operator
+      break;
   }
+
 }
 
 bool graphics::getPixel(uint8_t x, uint8_t y) {
   x--;         // normal start is 0 but 1 is better
   y = 64 - y;  // normally starts at bottom but top better
 
-  if ((x < 0) || (x >= WIDTH) || (y < 0) || (y >= HEIGHT))
-    return 0;  // outside screen bound
+  if ((x < 1) || (x > WIDTH) || (y < 1) || (y > HEIGHT)) return;  // outside screen bound
+
   if (buffer) {
     uint8_t byte = buffer[x + (y / 8) * WIDTH];
 
@@ -108,17 +109,35 @@ void graphics::rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Color color
 }
 
 void graphics::circle(uint8_t x, uint8_t y, uint8_t r, Color color) {
-  uint8_t offsetX, offsetY, setX, setY;
+  int8_t f = 1 - r;
+  int8_t ddF_x = 1;
+  int8_t ddF_y = -2 * r;
+  int8_t x = 0;
+  int8_t y = r;
 
-  for (uint16_t i = 0; i < 360; i++) {
-    offsetX = round(r * cos(i * PI / 180));
-    offsetY = round(r * sin(i * PI / 180));
+  setPixel(x0, y0 + r, color);
+  setPixel(x0, y0 - r, color);
+  setPixel(x0 + r, y0, color);
+  setPixel(x0 - r, y0, color);
 
-    if ((setX == x + offsetX) && (setY == y + offsetY)) continue;  //already had this pixel
+  while (x < y) {
+    if (f >= 0) {
+      y--;
+      ddF_y += 2;
+      f += ddF_y;
+    }
+    x++;
+    ddF_x += 2;
+    f += ddF_x;
 
-    setX = x + offsetX;
-    setY = y + offsetY;
-    setPixel(setX, setY, color);
+    setPixel(x0 + x, y0 + y, color);
+    setPixel(x0 - x, y0 + y, color);
+    setPixel(x0 + x, y0 - y, color);
+    setPixel(x0 - x, y0 - y, color);
+    setPixel(x0 + y, y0 + x, color);
+    setPixel(x0 - y, y0 + x, color);
+    setPixel(x0 + y, y0 - x, color);
+    setPixel(x0 - y, y0 - x, color);
   }
 }
 
@@ -133,6 +152,12 @@ void graphics::circle(uint8_t x, uint8_t y, uint8_t r, Color color, FillType fil
       }
       break;
   }
+}
+
+void graphics::triangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t x3, uint8_t y3, Color color) {
+  line(x1, y1, x2, y2, color);
+  line(x1, y1, x3, y3, color);
+  line(x1, y3, x2, y2, color);
 }
 
 void graphics::bitmap(uint8_t x, uint8_t y, const uint8_t Bitmap[], uint8_t w, uint8_t h, Color color) {
@@ -155,11 +180,46 @@ void graphics::textColor(Color color) {
   TextColor = color;
 }
 
+void graphics::textSize(uint8_t size) {
+  TextSize = size;
+}
+
+void graphics::textWrap(bool wrap) {
+  TextWrap = wrap;
+}
+
 void graphics::cursor(uint8_t x, uint8_t y) {
   CursorX = x;
   CursorY = y;
 }
 
-inline size_t graphics::write(uint8_t c) {
+void graphics::drawChar(uint8_t x, uint8_t y, char c, Color color, uint8_t Size) {
+  if ((x < 1) || (x > WIDTH) || (y < 1) || (y > HEIGHT)) return;
 
+  for (uint8_t i = 0; i < 5; i++) { // char 5 colomns
+    uint8_t l = pgm_read_byte(&font[c * 5 + i]);
+
+    for (uint8_t j = 0; j < 8; j++, l >>= 1) {
+      if (TextSize == 1)
+        setPixel(x + i, y + j, color);
+      else
+        rectangle(x + i * TextSize, y + j * TextSize, TextSize, TextSize, color, FILL);
+    }
+  }
+}
+
+inline size_t graphics::write(uint8_t c) {
+  if (c == "\n") {
+    CursorX = 0;
+    CursorY += 8 * TextSize;
+  } else if (c != "\r") {
+    if (TextWrap && (CursorX + TextSize * 6) > WIDTH) { // wrap text to next line
+      CursorX = 0;
+      CursorY += 8 * TextSize;
+    }
+    drawChar(CursorX, CursorY, c, TextColor, TextSize);
+    CursorX += 6 * TextSizel;
+  }
+
+  return 1;
 }
