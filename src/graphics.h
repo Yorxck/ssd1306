@@ -14,12 +14,22 @@ enum FillType {
   FILL
 };
 
+struct Bounds {
+  uint16_t width = 0;
+  uint16_t height = 0;
+  uint16_t cursorX = 0;
+  uint16_t cursorY = 0;
+
+  Bounds(uint16_t __width, uint16_t __height, uint16_t __cursorX, uint16_t __cursorY) : width(__width), height(__height), cursorX(__cursorX), cursorY(__cursorY) {}
+};
+
 class graphics : public Print {
 protected:
   uint8_t* buffer;
   uint8_t WIDTH;
   uint8_t HEIGHT;
-  uint8_t CursorX, CursorY = 1;
+  uint8_t CursorX = 1;
+  uint8_t CursorY = 1;
   Color TextColor = WHITE;
   uint8_t TextSize = 1;
   bool TextWrap = true;
@@ -28,7 +38,8 @@ protected:
   void lineD(int16_t ox, int16_t oy, int16_t ex, int16_t ey, Color color);
   void lineH(int16_t ox, int16_t oy, int16_t l, Color color);
   void lineV(int16_t ox, int16_t oy, int16_t l, Color color);
-  void drawChar(uint8_t x, uint8_t y, char c, Color color, uint8_t size_x, uint8_t size_y);
+  void drawChar(uint8_t x, uint8_t y, char c, Color color, uint8_t Size);
+  void charBounds(unsigned char c, uint16_t x, uint16_t y, Bounds* bounds);
 
 public:
   // Methods
@@ -44,8 +55,9 @@ public:
   void bitmap(uint8_t x, uint8_t y, const uint8_t Bitmap[], uint8_t w, uint8_t h, Color color);
   void textColor(Color color);
   void cursor(uint8_t x, uint8_t y);
-  void textSize(uint8_t size);\
+  void textSize(uint8_t size);
   void textWrap(bool wrap);
+  Bounds textBounds(const char* str, uint16_t x = 1, uint16_t y = 1);
 
   // inherited
   virtual size_t write(uint8_t);
