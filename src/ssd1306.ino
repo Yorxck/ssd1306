@@ -13,7 +13,7 @@ void setup() {
   display.triangle(50, 20, 30, 60, 100, 32, INVERSE);
   display.textColor(WHITE);
 
-  Bounds bounds = display.textBounds("Hello");
+  TextBounds bounds = display.textBounds("Hello");
 
   Serial.println(bounds.height);
   Serial.println(bounds.width);

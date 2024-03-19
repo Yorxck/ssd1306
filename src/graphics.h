@@ -14,13 +14,13 @@ enum FillType {
   FILL
 };
 
-struct Bounds {
+struct TextBounds {
   uint16_t width = 0;
   uint16_t height = 0;
   uint16_t cursorX = 0;
   uint16_t cursorY = 0;
 
-  Bounds(uint16_t __width, uint16_t __height, uint16_t __cursorX, uint16_t __cursorY) : width(__width), height(__height), cursorX(__cursorX), cursorY(__cursorY) {}
+  TextBounds(uint16_t __width, uint16_t __height, uint16_t __cursorX, uint16_t __cursorY) : width(__width), height(__height), cursorX(__cursorX), cursorY(__cursorY) {}
 };
 
 class graphics : public Print {
@@ -57,7 +57,7 @@ public:
   void cursor(uint8_t x, uint8_t y);
   void textSize(uint8_t size);
   void textWrap(bool wrap);
-  Bounds textBounds(const char* str, uint16_t x = 1, uint16_t y = 1);
+  TextBounds textBounds(const char* str, uint16_t x = 1, uint16_t y = 1);
 
   // inherited
   virtual size_t write(uint8_t);

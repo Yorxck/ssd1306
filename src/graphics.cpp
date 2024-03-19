@@ -177,7 +177,7 @@ void graphics::cursor(uint8_t x, uint8_t y) {
   CursorY = y;
 }
 
-void graphics::charBounds(unsigned char c, uint16_t x, uint16_t y, Bounds* bounds) {
+void graphics::charBounds(unsigned char c, uint16_t x, uint16_t y, TextBounds* bounds) {
   if (c == '\n') {
     (*bounds).cursorX = 1;
     (*bounds).cursorY += 8 * TextSize;
@@ -192,9 +192,9 @@ void graphics::charBounds(unsigned char c, uint16_t x, uint16_t y, Bounds* bound
   }
 }
 
-Bounds graphics::textBounds(const char* str, uint16_t x, uint16_t y) {
+TextBounds graphics::textBounds(const char* str, uint16_t x, uint16_t y) {
   uint8_t* c;
-  Bounds bounds(0, 0, x, y); // w, h, x, y
+  TextBounds bounds(0, 0, x, y); // w, h, x, y
 
   for (c = str; *c; c++) { //for every char
     charBounds(*c, x, y, &bounds);
