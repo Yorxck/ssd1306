@@ -3,6 +3,12 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+ssd1306::ssd1306(uint8_t __width, uint8_t __height, uint8_t __addr) {
+  WIDTH = __width;
+  HEIGHT = __height;
+  addr = __addr;
+}
+
 void ssd1306::exe_cmd(uint8_t cmd1) {
   Wire.beginTransmission(addr);
   Wire.write(0x00);
@@ -29,13 +35,19 @@ void ssd1306::exe_cmd(uint8_t cmd1, uint8_t cmd2, uint8_t cmd3) {
 
 bool ssd1306::begin() {
   buffer = (uint8_t *)malloc(WIDTH * HEIGHT / 8);
-  if (buffer == nullptr) return false;  // malloc failed :(
+  if (buffer == nullptr) {
+    errMsg = "malloc failed";
+    return false;  // malloc failed :(
+  }
   clear();
 
   Wire.begin();
   Wire.beginTransmission(addr);
   byte err = Wire.endTransmission();
-  if (err != 0) return;  // didnt find device
+  if (err != 0) {
+    errMsg = "device not connected to wire";
+    return false;  // didnt find device
+  }
 
   // set display properties
   exe_cmd(0xAE);              //Set display Off
@@ -58,6 +70,10 @@ bool ssd1306::begin() {
   exe_cmd(0xAF);              //Set display on
 
   return true;
+}
+
+char* ssd1306::error() {
+  return errMsg;
 }
 
 void ssd1306::update() {

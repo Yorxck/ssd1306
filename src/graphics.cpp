@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <math.h>
 #include "graphics.h"
 #include "font.h"
 
@@ -7,7 +8,7 @@ void graphics::setPixel(uint8_t x, uint8_t y, Color color) {
   x--;         // normal start is 0 but 1 is better
   y = 64 - y;  // normally starts at bottom but top better
 
-  if ((x < 1) || (x > WIDTH) || (y < 1) || (y > HEIGHT)) return;  // outside screen bound
+  if ((x < 0) || (x >= WIDTH) || (y < 0) || (y >= HEIGHT)) return; // outside screen bound
 
   switch (color) {
     case WHITE:
@@ -26,14 +27,15 @@ void graphics::setPixel(uint8_t x, uint8_t y, Color color) {
 bool graphics::getPixel(uint8_t x, uint8_t y) {
   x--;         // normal start is 0 but 1 is better
   y = 64 - y;  // normally starts at bottom but top better
-
-  if ((x < 1) || (x > WIDTH) || (y < 1) || (y > HEIGHT)) return;  // outside screen bound
-
+  
+  if ((x < 0) || (x >= WIDTH) || (y < 0) || (y >= HEIGHT)) return false;  // outside screen bound
+  
   if (buffer) {
     uint8_t byte = buffer[x + (y / 8) * WIDTH];
 
     return ((byte & (1 << y % 8)) >> y % 8) != 0;
   }
+
   return 0;
 }
 
@@ -80,9 +82,9 @@ void graphics::lineD(int16_t ox, int16_t oy, int16_t ex, int16_t ey, Color color
 
 void graphics::line(int16_t ox, int16_t oy, int16_t ex, int16_t ey, Color color) {
   if (ox == ex) {
-    lineH(ox, oy, abs(ox - ex) + 1, color);  // Horizontal
+    lineV(ox, oy, abs(oy - ey), color);  // Horizontal
   } else if (oy == ey) {
-    lineV(ox, oy, abs(oy - ey) + 1, color);  // Vertical
+    lineH(ox, oy, abs(ox-ex), color);  // Vertical
   } else {
     lineD(ox, oy, ex, ey, color);  // Diagonal
   }
@@ -109,35 +111,17 @@ void graphics::rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Color color
 }
 
 void graphics::circle(uint8_t x, uint8_t y, uint8_t r, Color color) {
-  int8_t f = 1 - r;
-  int8_t ddF_x = 1;
-  int8_t ddF_y = -2 * r;
-  int8_t x = 0;
-  int8_t y = r;
+  uint16_t px, py;
 
-  setPixel(x0, y0 + r, color);
-  setPixel(x0, y0 - r, color);
-  setPixel(x0 + r, y0, color);
-  setPixel(x0 - r, y0, color);
+  for (uint16_t angle = 0; angle < 360; angle++) {
+    uint16_t xr = round(r * cos(angle * PI / 180));
+    uint16_t yr = round(r * sin(angle * PI / 180));
 
-  while (x < y) {
-    if (f >= 0) {
-      y--;
-      ddF_y += 2;
-      f += ddF_y;
-    }
-    x++;
-    ddF_x += 2;
-    f += ddF_x;
+    if (px == (x + xr) && py == (y + yr)) continue;
 
-    setPixel(x0 + x, y0 + y, color);
-    setPixel(x0 - x, y0 + y, color);
-    setPixel(x0 + x, y0 - y, color);
-    setPixel(x0 - x, y0 - y, color);
-    setPixel(x0 + y, y0 + x, color);
-    setPixel(x0 - y, y0 + x, color);
-    setPixel(x0 + y, y0 - x, color);
-    setPixel(x0 - y, y0 - x, color);
+    px = x + xr;
+    py = y + yr;
+    setPixel(px, py, color);
   }
 }
 
@@ -157,7 +141,7 @@ void graphics::circle(uint8_t x, uint8_t y, uint8_t r, Color color, FillType fil
 void graphics::triangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t x3, uint8_t y3, Color color) {
   line(x1, y1, x2, y2, color);
   line(x1, y1, x3, y3, color);
-  line(x1, y3, x2, y2, color);
+  line(x3, y3, x2, y2, color);
 }
 
 void graphics::bitmap(uint8_t x, uint8_t y, const uint8_t Bitmap[], uint8_t w, uint8_t h, Color color) {
@@ -193,32 +177,59 @@ void graphics::cursor(uint8_t x, uint8_t y) {
   CursorY = y;
 }
 
+void graphics::charBounds(unsigned char c, uint16_t x, uint16_t y, TextBounds* bounds) {
+  if (c == '\n') {
+    (*bounds).cursorX = 1;
+    (*bounds).cursorY += 8 * TextSize;
+  } else if (c != '\r') {
+    if (TextWrap && (CursorX + TextSize * 6) > WIDTH) { // wrap text to next line
+      (*bounds).cursorX = 1;
+      (*bounds).cursorY += 8 * TextSize;
+    }
+    (*bounds).cursorX += 6 * TextSize;
+    (*bounds).height = (bounds->cursorY + TextSize * 8 - 1) - y;
+    (*bounds).width = (bounds->cursorX + TextSize * 6 - 1) - x;
+  }
+}
+
+TextBounds graphics::textBounds(const char* str, uint16_t x, uint16_t y) {
+  uint8_t* c;
+  TextBounds bounds(0, 0, x, y); // w, h, x, y
+
+  for (c = str; *c; c++) { //for every char
+    charBounds(*c, x, y, &bounds);
+  }
+
+  return bounds;
+}
+
 void graphics::drawChar(uint8_t x, uint8_t y, char c, Color color, uint8_t Size) {
   if ((x < 1) || (x > WIDTH) || (y < 1) || (y > HEIGHT)) return;
 
   for (uint8_t i = 0; i < 5; i++) { // char 5 colomns
-    uint8_t l = pgm_read_byte(&font[c * 5 + i]);
-
-    for (uint8_t j = 0; j < 8; j++, l >>= 1) {
-      if (TextSize == 1)
-        setPixel(x + i, y + j, color);
-      else
-        rectangle(x + i * TextSize, y + j * TextSize, TextSize, TextSize, color, FILL);
+    uint8_t charbit = pgm_read_byte(&default_font[c * 5 + i]);
+    for (uint8_t j = 0; j < 8; j++, charbit >>= 1) {
+      if (charbit & 1) {
+        if (TextSize == 1)
+          setPixel(x + i, y + j, color);
+        else
+          rectangle(x + i * TextSize, y + j * TextSize, TextSize, TextSize, color, FILL);
+      }
     }
   }
 }
 
-inline size_t graphics::write(uint8_t c) {
-  if (c == "\n") {
-    CursorX = 0;
+size_t graphics::write(uint8_t c) {
+  if (c == '\n') {
+    CursorX = 1;
     CursorY += 8 * TextSize;
-  } else if (c != "\r") {
+  } else if (c != '\r') {
     if (TextWrap && (CursorX + TextSize * 6) > WIDTH) { // wrap text to next line
-      CursorX = 0;
+      CursorX = 1;
       CursorY += 8 * TextSize;
     }
     drawChar(CursorX, CursorY, c, TextColor, TextSize);
-    CursorX += 6 * TextSizel;
+    CursorX += 6 * TextSize;
   }
 
   return 1;
