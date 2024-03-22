@@ -18,10 +18,7 @@ this function will initialize the display and reserve memory for the buffer.
 
 #### Syntax
 ```c++
-  if (!display.begin()) { // initialize display
-      Serial.println(display.error()); // shows display error if failed
-      for (;;) {}
-  }
+  display.begin(); // initialize display
 ```
 
 #### Parameters
