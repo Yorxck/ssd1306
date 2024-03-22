@@ -18,8 +18,8 @@ to begin the display use:
   void setup() {
     Serial.begin(9600);
 
-    if (!display.begin()) {
-      Serial.println(display.error());
+    if (!display.begin()) { // begins display
+      Serial.println(display.error()); // shows display error if failed
     }
   }
 ```
