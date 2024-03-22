@@ -3,7 +3,6 @@
 #include "graphics.h"
 #include "font.h"
 
-
 void graphics::setPixel(uint8_t x, uint8_t y, Color color) {
   x--;         // normal start is 0 but 1 is better
   y = 64 - y;  // normally starts at bottom but top better
@@ -111,17 +110,24 @@ void graphics::rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Color color
 }
 
 void graphics::circle(uint8_t x, uint8_t y, uint8_t r, Color color) {
-  uint16_t px, py;
+  for (int16_t rx = -r; rx <= (r * 2); rx++) {
+    for (int16_t ry = -r; ry <= (r * 2); ry++) { // loop for square
+      
+      if (round(sqrt(pow(rx, 2) + pow(ry, 2))) == r) { // inside of radius
+        setPixel(x + rx, y + ry, color);
+      }
+    }
+  }
+}
 
-  for (uint16_t angle = 0; angle < 360; angle++) {
-    uint16_t xr = round(r * cos(angle * PI / 180));
-    uint16_t yr = round(r * sin(angle * PI / 180));
-
-    if (px == (x + xr) && py == (y + yr)) continue;
-
-    px = x + xr;
-    py = y + yr;
-    setPixel(px, py, color);
+void graphics::fillCircle(uint8_t x, uint8_t y, uint8_t r, Color color) {
+  for (int16_t rx = -r; rx <= (r * 2); rx++) {
+    for (int16_t ry = -r; ry <= (r * 2); ry++) { // loop for square
+      
+      if (sqrt(pow(rx, 2) + pow(ry, 2)) <= r) { // inside of radius
+        setPixel(x + rx, y + ry, color);
+      }
+    }
   }
 }
 
@@ -131,9 +137,7 @@ void graphics::circle(uint8_t x, uint8_t y, uint8_t r, Color color, FillType fil
       circle(x, y, r, color);
       break;
     case FILL:
-      for (uint8_t f = 0; f <= r; f++) {
-        circle(x, y, f, color);
-      }
+      fillCircle(x, y, r, color);
       break;
   }
 }
@@ -144,7 +148,7 @@ void graphics::triangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t 
   line(x3, y3, x2, y2, color);
 }
 
-void graphics::bitmap(uint8_t x, uint8_t y, const uint8_t Bitmap[], uint8_t w, uint8_t h, Color color) {
+void graphics::bitmap(uint8_t x, uint8_t y, Bitmap bitmap[], uint8_t w, uint8_t h, Color color) {
   uint8_t byteWidth = (w + 7) / 8;
   uint8_t b = 0;
 
@@ -153,7 +157,7 @@ void graphics::bitmap(uint8_t x, uint8_t y, const uint8_t Bitmap[], uint8_t w, u
       if (i & 7)
         b <<= 1;
       else
-        b = pgm_read_byte(&Bitmap[j * byteWidth + i / 8]);
+        b = pgm_read_byte(&bitmap[j * byteWidth + i / 8]);
       if (b & 0x80)
         setPixel(x + i, y, color);
     }
@@ -177,27 +181,52 @@ void graphics::cursor(uint8_t x, uint8_t y) {
   CursorY = y;
 }
 
-void graphics::charBounds(unsigned char c, uint16_t x, uint16_t y, TextBounds* bounds) {
+void graphics::charBounds(unsigned char c, uint16_t* x, uint16_t* y, int16_t* minx, int16_t* miny, int16_t* maxx, int16_t* maxy) {
   if (c == '\n') {
-    (*bounds).cursorX = 1;
-    (*bounds).cursorY += 8 * TextSize;
+    *x = 1;
+    *y += 8 * TextSize;
   } else if (c != '\r') {
-    if (TextWrap && (CursorX + TextSize * 6) > WIDTH) { // wrap text to next line
-      (*bounds).cursorX = 1;
-      (*bounds).cursorY += 8 * TextSize;
+    if (TextWrap && (CursorX + TextSize * 6) >= WIDTH) { // wrap text to next line
+      *x = 1;
+      *y += 8 * TextSize;
     }
-    (*bounds).cursorX += 6 * TextSize;
-    (*bounds).height = (bounds->cursorY + TextSize * 8 - 1) - y;
-    (*bounds).width = (bounds->cursorX + TextSize * 6 - 1) - x;
+    int16_t px = (*x + TextSize * 6 - 1),
+            py = (*y + TextSize * 8 - 1);
+
+    if (px > *maxx)
+      *maxx = px;
+    if (*x < *minx)
+      *minx = *x;
+    if (py > *maxy)
+      *maxy = py;
+    if (*y < *miny)
+      *miny = *y;
+
+    *x += 6 * TextSize;
   }
 }
 
-TextBounds graphics::textBounds(const char* str, uint16_t x, uint16_t y) {
-  uint8_t* c;
+TextBounds graphics::textBounds(char* str, uint16_t x, uint16_t y) {
+  uint8_t c;
+  int16_t minx = WIDTH + 1,
+          miny = HEIGHT + 1,
+          maxx = 0,
+          maxy = 0;
   TextBounds bounds(0, 0, x, y); // w, h, x, y
+  
+  for (uint16_t i = 0; i < strlen(str); i++) { //for every char
+    charBounds(str[i], &x, &y, &minx, &miny, &maxx, &maxy);
+  }
 
-  for (c = str; *c; c++) { //for every char
-    charBounds(*c, x, y, &bounds);
+  if (maxx >= minx) {
+    bounds.cursorX = x;
+    bounds.width = maxx - minx + 1;
+    
+  }
+
+  if (maxy >= miny) {
+    bounds.cursorY = y;
+    bounds.height = maxy - miny + 1;
   }
 
   return bounds;
