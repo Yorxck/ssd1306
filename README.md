@@ -10,6 +10,8 @@ To use this library:
   ssd1306 display(width, height, addr, sda, scl, rst);
 ```
 
+<br\>
+
 ## Basics
 
 ### `begin()`
