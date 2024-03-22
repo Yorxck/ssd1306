@@ -10,21 +10,25 @@ To use this library:
   ssd1306 display(width, height, addr, sda, scl, rst);
 ```
 
-##
-<br/>
+## functions
 
-to begin the display use:
-```cpp
-  void setup() {
-    Serial.begin(9600);
+### `begin()`
 
-    if (!display.begin()) { // begins display
+this function will initialize the display and reserve memory for the buffer.
+
+#### Syntax
+```c++
+  if (!display.begin()) { // initialize display
       Serial.println(display.error()); // shows display error if failed
       for (;;) {}
-    }
   }
 ```
 
-<br/>
+#### Parameters
+None
 
-## functions
+#### Returns
+* `bool`: it will return true if the initialization was successful
+
+#### See also
+* [rad2deg](#rad2deg)
