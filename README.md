@@ -20,6 +20,7 @@ to begin the display use:
 
     if (!display.begin()) { // begins display
       Serial.println(display.error()); // shows display error if failed
+      for (;;) {}
     }
   }
 ```
