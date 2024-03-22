@@ -9,8 +9,11 @@ To use this library:
 
   ssd1306 display(width, height, addr, sda, scl, rst);
 ```
+
+##
 <br/>
-to startup the library:
+
+to begin the display use:
 ```cpp
   void setup() {
     Serial.begin(9600);
