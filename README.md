@@ -28,7 +28,31 @@ this function will initialize the display and reserve memory for the buffer.
 None
 
 #### Returns
-* `bool`: it will return true if the initialization was successful
+* `bool`: it will return true if the initialization was successful.
 
 #### See also
-* [rad2deg](#rad2deg)
+* [`error()`](#error)
+
+## 
+<br/>
+
+### `error()`
+
+will return the error message (if error was caught at begin function).
+
+#### Syntax
+```c++
+  if (!display.begin()) { // initialize display
+      Serial.println(display.error()); // shows display error if failed
+      for (;;) {}
+  }
+```
+
+#### Parameters
+None
+
+#### Returns
+* `char*`: will return the error message (if error was caught at begin function).
+
+#### See also
+* [`begin()`](#begin)
